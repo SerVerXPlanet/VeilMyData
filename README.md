@@ -25,3 +25,17 @@ PS > .\MergeFile.ps1 "Source_First_File_Name"
 > where Source_First_File_Name is name of first part with ".p001" extension
 ##
 ##
+script on powershell for pack directory into one file
+```powershell
+PS > .\PackDir.ps1 "Source_Directory" ["Destination_File_Name"] [Is_Compress_Data] [Is_Compress_Names]
+```
+> where parameters in [] is optional
+> 
+> Is_Compress_Data and Is_Compress_Names is $true or $false (default $true)
+##
+##
+script on powershell for unpack data from archive file to directory
+```powershell
+PS > .\UnpackDir.ps1 "Source_File_Name" ["Destination_Directory"]
+```
+> where parameters in [] is optional
