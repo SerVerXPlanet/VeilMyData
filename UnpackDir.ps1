@@ -74,6 +74,33 @@ function Read-Block {
 }
 
 
+function Get-Name {
+    [OutputType([string])]
+
+    param (
+        [Parameter(Mandatory = $true)]
+        [System.IO.FileStream]$fs,
+        [Parameter(Mandatory = $true)]
+        [bool]$isCompress
+    )
+
+    [byte[]]$binLen = Read-Block $fs 2
+    [int]$sizeName = [System.BitConverter]::ToInt16($binLen, 0)
+    
+    [byte[]]$binName = Read-Block $fs $sizeName
+    
+    if ($isCompress) {
+        $binName = Decompress-Array $binName
+    }
+    
+    [string]$name = [System.Text.Encoding]::UTF8.GetString($binName)
+    
+    $name = $name -replace '^[a-zA-Z]:\\?', ''
+
+    return $name
+}
+
+
 function Unpack-Dir {
     param (
         [Parameter(Mandatory = $true)]
@@ -145,7 +172,6 @@ function Unpack-Dir {
         [bool]$isCompressNam = [System.Convert]::ToBoolean($settings -band (1 -shl 6))
         
         [bool]$isDir = $false
-        [int]$sizeName = 0
         [string]$name = ""
         [long]$size = 0
         [long]$pos = 0
@@ -170,17 +196,8 @@ function Unpack-Dir {
                     $currentLevel--
                 }
                 
-                $binLen = Read-Block $fin 2
-                $sizeName = [System.BitConverter]::ToInt16($binLen, 0)
-                
-                $binName = Read-Block $fin $sizeName
-                
-                if ($isCompressNam) {
-                    $binName = Decompress-Array $binName
-                }
-                
-                $name = [System.Text.Encoding]::UTF8.GetString($binName)
-                
+                $name = Get-Name $fin $isCompressNam
+
                 $di = [System.IO.Directory]::CreateDirectory([System.IO.Path]::Combine((New-Object System.IO.DirectoryInfo([System.IO.Directory]::GetCurrentDirectory())).FullName, $name))
                 
                 if (-not $di.Exists) {
@@ -192,16 +209,7 @@ function Unpack-Dir {
                 $currentLevel++
             }
             else {
-                $binLen = Read-Block $fin 2
-                $sizeName = [System.BitConverter]::ToInt16($binLen, 0)
-                
-                $binName = Read-Block $fin $sizeName
-                
-                if ($isCompressNam) {
-                    $binName = Decompress-Array $binName
-                }
-                
-                $name = [System.Text.Encoding]::UTF8.GetString($binName)
+                $name = Get-Name $fin $isCompressNam
                 
                 $binSize = Read-Block $fin 8
                 $size = [System.BitConverter]::ToInt64($binSize, 0)
@@ -209,24 +217,31 @@ function Unpack-Dir {
                 $outputFile = [System.IO.Path]::Combine((New-Object System.IO.DirectoryInfo([System.IO.Directory]::GetCurrentDirectory())).FullName, $name)
                 
                 Using-Object ($fout = New-Object System.IO.FileStream($outputFile, [System.IO.FileMode]::Create)) {
-                    if ($isCompressDat) {
-                        Using-Object ($decompressor = New-Object System.IO.Compression.DeflateStream($fin, [System.IO.Compression.CompressionMode]::Decompress, $true)) {
-                            $pos = $fin.Position
-                            
-                            $decompressor.CopyTo($fout, $buffer.Length)
-                            
-                            $fin.Position = $pos + $size
+                    if ($size -ne 0) {
+                        if ($isCompressDat) {
+                            Using-Object ($decompressor = New-Object System.IO.Compression.DeflateStream($fin, [System.IO.Compression.CompressionMode]::Decompress, $true)) {
+                                $pos = $fin.Position
+                                
+                                try {
+                                    $decompressor.CopyTo($fout, $buffer.Length)
+                                }
+                                catch {
+                                    Write-Host ($_.Exception.Message + " [" + $outputFile + "]")
+                                }
+
+                                $fin.Position = $pos + $size
+                            }
                         }
-                    }
-                    else {
-                        $ost = $size
-                        
-                        while ($ost -gt 0) {
-                            $bytesRead = $fin.Read($buffer, 0, $(if ($ost -gt $buffer.Length) {$buffer.Length} else {[int]$ost}))
+                        else {
+                            $ost = $size
                             
-                            $fout.Write($buffer, 0, $bytesRead)
-                            
-                            $ost -= $bytesRead
+                            while ($ost -gt 0) {
+                                $bytesRead = $fin.Read($buffer, 0, $(if ($ost -gt $buffer.Length) {$buffer.Length} else {[int]$ost}))
+                                
+                                $fout.Write($buffer, 0, $bytesRead)
+                                
+                                $ost -= $bytesRead
+                            }
                         }
                     }
                 }
