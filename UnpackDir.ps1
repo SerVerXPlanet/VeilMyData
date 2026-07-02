@@ -40,7 +40,7 @@ function Decompress-Array {
         [byte[]]$data
     )
     
-    $input = New-Object System.IO.MemoryStream($data)
+    $input = New-Object System.IO.MemoryStream(,$data)
     $output = New-Object System.IO.MemoryStream
 
     Using-Object ($dstream = New-Object System.IO.Compression.DeflateStream($input, [System.IO.Compression.CompressionMode]::Decompress)) {
@@ -84,16 +84,18 @@ function Get-Name {
         [bool]$isCompress
     )
 
-    [byte[]]$binLen = Read-Block $fs 2
+    [string]$name = ""
+
+    $binLen = Read-Block $fs 2
     [int]$sizeName = [System.BitConverter]::ToInt16($binLen, 0)
     
-    [byte[]]$binName = Read-Block $fs $sizeName
+    $binName = Read-Block $fs $sizeName
     
     if ($isCompress) {
         $binName = Decompress-Array $binName
     }
     
-    [string]$name = [System.Text.Encoding]::UTF8.GetString($binName)
+    $name = [System.Text.Encoding]::UTF8.GetString($binName)
     
     $name = $name -replace '^[a-zA-Z]:\\?', ''
 
