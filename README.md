@@ -25,6 +25,22 @@ PS > .\MergeFile.ps1 "Source_First_File_Name"
 > where Source_First_File_Name is name of first part with ".p001" extension
 ##
 ##
+script on powershell for encode data to base64
+```powershell
+PS > .\Base64Enc.ps1 "Source_File" ["Destination_File"]
+```
+> where parameters in [] is optional
+> 
+> when Destination_File is empty then base64 string will be printed into console
+##
+##
+script on powershell for decode base64 to data
+```powershell
+PS > .\Base64Dec.ps1 "Source_File" "Destination_File"
+```
+> Source_File may be path to file or base64 string
+##
+##
 script on powershell for pack directory into one file
 ```powershell
 PS > .\PackDir.ps1 "Source_Directory" ["Destination_File_Name"] [Is_Compress_Data] [Is_Compress_Names]
